@@ -296,7 +296,7 @@ class TestJWT: XCTestCase {
     }
     
     func signAndVerify(signer: JWTSigner, verifier: JWTVerifier) throws {
-        var jwt = JWT(claims: TestClaims(name:"Kitura"))
+        var jwt = JWT(header: Header(), claims: TestClaims(name:"Kitura"))
         jwt.claims.name = "Kitura-JWT"
         XCTAssertEqual(jwt.claims.name, "Kitura-JWT")
         jwt.claims.iss = "issuer"
@@ -305,14 +305,14 @@ class TestJWT: XCTestCase {
         jwt.claims.exp = Date(timeIntervalSince1970: 2485949565.58463)
         jwt.claims.nbf = Date(timeIntervalSince1970: 1485949565.58463)
         let signed = try jwt.sign(using: signer)
-        let ok = JWT<TestClaims>.verify(signed, using: verifier)
+        let ok = JWT<Header, TestClaims>.verify(signed, using: verifier)
         XCTAssertTrue(ok, "Verification failed")
-        let decoded = try JWT<TestClaims>(jwtString: signed)
+        let decoded = try JWT<Header, TestClaims>(jwtString: signed)
         check(jwt: decoded, algorithm: signer.name)
         XCTAssertEqual(decoded.validateClaims(), .success, "Validation failed")
     }
 
-    func check(jwt: JWT<TestClaims>, algorithm: String) {
+    func check(jwt: JWT<Header, TestClaims>, algorithm: String) {
 
         XCTAssertEqual(jwt.header.alg, algorithm, "Wrong .alg in decoded")
         XCTAssertEqual(jwt.claims.exp, Date(timeIntervalSince1970: 2485949565.58463), "Wrong .exp in decoded")
@@ -320,7 +320,7 @@ class TestJWT: XCTestCase {
         XCTAssertEqual(jwt.claims.nbf, Date(timeIntervalSince1970: 1485949565.58463), "Wrong .nbf in decoded")
     }
     
-    func checkMicroProfile(jwt: JWT<MicroProfile>, algorithm: String) {
+    func checkMicroProfile(jwt: JWT<Header, MicroProfile>, algorithm: String) {
         
         XCTAssertEqual(jwt.header.alg, "RS256", "Wrong .alg in decoded. MicroProfile only supports RS256.")
         XCTAssertEqual(jwt.claims.iss, "https://server.example.com", "Wrong .iss in decoded")
@@ -333,7 +333,7 @@ class TestJWT: XCTestCase {
 
 
     func testMicroProfile() {
-        var jwt = JWT(claims: MicroProfile(name: "MP-JWT"))
+        var jwt = JWT(header: Header(), claims: MicroProfile(name: "MP-JWT"))
         jwt.header.kid = "abc-1234567890"
         jwt.header.typ = "JWT"
         XCTAssertEqual(jwt.claims.name, "MP-JWT")
@@ -346,10 +346,10 @@ class TestJWT: XCTestCase {
             
         // public key (MP-JWT needs to be signed)
         if let signed = try? jwt.sign(using: .rs256(privateKey: rsaPrivateKey)) {
-            let ok = JWT<MicroProfile>.verify(signed, using: .rs256(publicKey: rsaPublicKey))
+            let ok = JWT<Header, MicroProfile>.verify(signed, using: .rs256(publicKey: rsaPublicKey))
             XCTAssertTrue(ok, "Verification failed")
             
-            if let decoded = try? JWT<MicroProfile>(jwtString: signed) {
+            if let decoded = try? JWT<Header, MicroProfile>(jwtString: signed) {
                 checkMicroProfile(jwt: decoded, algorithm: "RS256")
                 
                 XCTAssertEqual(decoded.validateClaims(), .success, "Validation failed")
@@ -364,10 +364,10 @@ class TestJWT: XCTestCase {
         
         // certificate
         if let signed = try? jwt.sign(using: .rs256(privateKey: certPrivateKey)) {
-            let ok = JWT<MicroProfile>.verify(signed, using: .rs256(certificate: certificate))
+            let ok = JWT<Header, MicroProfile>.verify(signed, using: .rs256(certificate: certificate))
             XCTAssertTrue(ok, "Verification failed")
             
-            if let decoded = try? JWT<MicroProfile>(jwtString: signed) {
+            if let decoded = try? JWT<Header, MicroProfile>(jwtString: signed) {
                 checkMicroProfile(jwt: decoded, algorithm: "RS256")
                 
                 XCTAssertEqual(decoded.validateClaims(), .success, "Validation failed")
@@ -378,19 +378,19 @@ class TestJWT: XCTestCase {
         }
     }
 
-    // This test uses the rsaJWTEncoder to encode a JWT<TestClaims> as a JWT String.
+    // This test uses the rsaJWTEncoder to encode a JWT<Header, TestClaims> as a JWT String.
     // It then decodes the resulting JWT String using the JWT init from String.
     // The test checks that the decoded JWT is the same as the JWT you started as well as the decoded rsaEncodedTestClaimJWT.
     func testJWTEncoder() {
-        var jwt = JWT(claims: TestClaims())
+        var jwt = JWT(header: Header(), claims: TestClaims())
         jwt.claims.sub = "1234567890"
         jwt.claims.name = "John Doe"
         jwt.claims.admin = true
         jwt.claims.iat = Date(timeIntervalSince1970: 1516239022)
         do {
             let jwtString = try rsaJWTEncoder.encodeToString(jwt)
-            let decodedJWTString = try JWT<TestClaims>(jwtString: jwtString)
-            let decodedTestClaimJWT = try JWT<TestClaims>(jwtString: rsaEncodedTestClaimJWT)
+            let decodedJWTString = try JWT<Header, TestClaims>(jwtString: jwtString)
+            let decodedTestClaimJWT = try JWT<Header, TestClaims>(jwtString: rsaEncodedTestClaimJWT)
             // Setting the alg field on the header since the decoded JWT will have had the alg header set in the signing process.
             jwt.header.alg = "RS256"
             XCTAssertEqual(jwt.claims, decodedJWTString.claims)
@@ -402,16 +402,16 @@ class TestJWT: XCTestCase {
         }
     }
 
-    // This test uses the rsaJWTDecoder to decode the rsaEncodedTestClaimJWT as a JWT<TestClaims>.
+    // This test uses the rsaJWTDecoder to decode the rsaEncodedTestClaimJWT as a JWT<Header, TestClaims>.
     // The test checks that the decoded JWT is the same as the JWT that was originally encoded.
     func testJWTDecoder() {
-        var jwt = JWT(claims: TestClaims())
+        var jwt = JWT(header: Header(), claims: TestClaims())
         jwt.claims.sub = "1234567890"
         jwt.claims.name = "John Doe"
         jwt.claims.admin = true
         jwt.claims.iat = Date(timeIntervalSince1970: 1516239022)
         do {
-            let decodedJWT = try rsaJWTDecoder.decode(JWT<TestClaims>.self, fromString: rsaEncodedTestClaimJWT)
+            let decodedJWT = try rsaJWTDecoder.decode(JWT<Header, TestClaims>.self, fromString: rsaEncodedTestClaimJWT)
             jwt.header.alg = "RS256"
             XCTAssertEqual(decodedJWT.claims, jwt.claims)
             XCTAssertEqual(decodedJWT.header, jwt.header)
@@ -420,15 +420,15 @@ class TestJWT: XCTestCase {
         }
     }
 
-    // This test encoded and then decoded a JWT<TestClaims> and checks you get the original JWT back with only the alg header changed.
+    // This test encoded and then decoded a JWT<Header, TestClaims> and checks you get the original JWT back with only the alg header changed.
     func testJWTCoderCycle() {
-        var jwt = JWT(claims: TestClaims())
+        var jwt = JWT(header: Header(), claims: TestClaims())
         jwt.claims.sub = "1234567890"
         jwt.claims.name = "John Doe"
         jwt.claims.admin = true
         do {
             let jwtData = try rsaJWTEncoder.encode(jwt)
-            let decodedJWT = try rsaJWTDecoder.decode(JWT<TestClaims>.self, from: jwtData)
+            let decodedJWT = try rsaJWTDecoder.decode(JWT<Header, TestClaims>.self, from: jwtData)
             jwt.header.alg = "RS256"
             XCTAssertEqual(decodedJWT.claims, jwt.claims)
             XCTAssertEqual(decodedJWT.header, jwt.header)
@@ -437,18 +437,18 @@ class TestJWT: XCTestCase {
         }
     }
 
-    // This test uses the rsaJWTKidEncoder to encode a JWT<TestClaims> as a JWT String using the kid header to select the JWTSigner.
+    // This test uses the rsaJWTKidEncoder to encode a JWT<Header, TestClaims> as a JWT String using the kid header to select the JWTSigner.
     // It then decodes the resulting JWT String using the JWT init from String.
     // The test checks that the decoded JWT is the same as the JWT you started as well as the decoded certificateEncodedTestClaimJWT.
     func testJWTEncoderKeyID() {
-        var jwt = JWT(claims: TestClaims())
+        var jwt = JWT(header: Header(), claims: TestClaims())
         jwt.header.kid = "0"
         jwt.claims.sub = "1234567890"
         jwt.claims.name = "John Doe"
         jwt.claims.admin = true
         do {
             let jwtString = try rsaJWTKidEncoder.encodeToString(jwt)
-            let decodedJWTString = try JWT<TestClaims>(jwtString: jwtString)
+            let decodedJWTString = try JWT<Header, TestClaims>(jwtString: jwtString)
             jwt.header.alg = "RS256"
             XCTAssertEqual(jwt.claims, decodedJWTString.claims)
             XCTAssertEqual(jwt.header, decodedJWTString.header)
@@ -457,16 +457,16 @@ class TestJWT: XCTestCase {
         }
     }
 
-    // This test uses the rsaJWTKidDecoder to decode the certificateEncodedTestClaimJWT as a JWT<TestClaims> using the kid header to select the JWTVerifier.
+    // This test uses the rsaJWTKidDecoder to decode the certificateEncodedTestClaimJWT as a JWT<Header, TestClaims> using the kid header to select the JWTVerifier.
     // The test checks that the decoded JWT is the same as the JWT that was originally encoded.
     func testJWTDecoderKeyID() {
-        var jwt = JWT(claims: TestClaims())
+        var jwt = JWT(header: Header(), claims: TestClaims())
         jwt.header.kid = "1"
         jwt.claims.sub = "1234567890"
         jwt.claims.name = "John Doe"
         jwt.claims.admin = true
         do {
-            let decodedJWT = try rsaJWTKidDecoder.decode(JWT<TestClaims>.self, fromString: certificateEncodedTestClaimJWT)
+            let decodedJWT = try rsaJWTKidDecoder.decode(JWT<Header, TestClaims>.self, fromString: certificateEncodedTestClaimJWT)
             jwt.header.alg = "RS256"
             XCTAssertEqual(decodedJWT.claims, jwt.claims)
             XCTAssertEqual(decodedJWT.header, jwt.header)
@@ -475,17 +475,17 @@ class TestJWT: XCTestCase {
         }
     }
     
-    // This test encoded and then decoded a JWT<TestClaims> and checks you get the original JWT back with only the alg header changed.
+    // This test encoded and then decoded a JWT<Header, TestClaims> and checks you get the original JWT back with only the alg header changed.
     // The kid header is used to select the rsa private and public keys for encoding/decoding.
     func testJWTCoderCycleKeyID() {
-        var jwt = JWT(claims: TestClaims())
+        var jwt = JWT(header: Header(), claims: TestClaims())
         jwt.header.kid = "1"
         jwt.claims.sub = "1234567890"
         jwt.claims.name = "John Doe"
         jwt.claims.admin = true
         do {
             let jwtData = try rsaJWTKidEncoder.encode(jwt)
-            let decodedJWT = try rsaJWTKidDecoder.decode(JWT<TestClaims>.self, from: jwtData)
+            let decodedJWT = try rsaJWTKidDecoder.decode(JWT<Header, TestClaims>.self, from: jwtData)
             jwt.header.alg = "RS256"
             XCTAssertEqual(decodedJWT.claims, jwt.claims)
             XCTAssertEqual(decodedJWT.header, jwt.header)
@@ -496,10 +496,10 @@ class TestJWT: XCTestCase {
 
     // From jwt.io
     func testJWT() {
-        let ok = JWT<TestClaims>.verify(rsaEncodedTestClaimJWT, using: .rs256(publicKey: rsaPublicKey))
+        let ok = JWT<Header, TestClaims>.verify(rsaEncodedTestClaimJWT, using: .rs256(publicKey: rsaPublicKey))
         XCTAssertTrue(ok, "Verification failed")
         
-        if let decoded = try? JWT<TestClaims>(jwtString: rsaEncodedTestClaimJWT) {
+        if let decoded = try? JWT<Header, TestClaims>(jwtString: rsaEncodedTestClaimJWT) {
             XCTAssertEqual(decoded.header.alg, "RS256", "Wrong .alg in decoded")
             XCTAssertEqual(decoded.header.typ, "JWT", "Wrong .typ in decoded")
             
@@ -519,10 +519,10 @@ class TestJWT: XCTestCase {
     // From jwt.io
     func testJWTRSAPSS() {
         if #available(OSX 10.13, *) {
-            let ok = JWT<TestClaims>.verify(rsaPSSEncodedTestClaimJWT, using: .ps256(publicKey: rsaPublicKey))
+            let ok = JWT<Header, TestClaims>.verify(rsaPSSEncodedTestClaimJWT, using: .ps256(publicKey: rsaPublicKey))
             XCTAssertTrue(ok, "Verification failed")
             
-            if let decoded = try? JWT<TestClaims>(jwtString: rsaPSSEncodedTestClaimJWT) {
+            if let decoded = try? JWT<Header, TestClaims>(jwtString: rsaPSSEncodedTestClaimJWT) {
                 XCTAssertEqual(decoded.header.alg, "PS256", "Wrong .alg in decoded")
                 XCTAssertEqual(decoded.header.typ, "JWT", "Wrong .typ in decoded")
                 
@@ -544,10 +544,10 @@ class TestJWT: XCTestCase {
         guard let hmacData = "Super Secret Key".data(using: .utf8) else {
             return XCTFail("Failed to convert hmacKey to Data")
         }
-        let ok = JWT<TestClaims>.verify(hmacEncodedTestClaimJWT, using: .hs256(key: hmacData))
+        let ok = JWT<Header, TestClaims>.verify(hmacEncodedTestClaimJWT, using: .hs256(key: hmacData))
         XCTAssertTrue(ok, "Verification failed")
         
-        if let decoded = try? JWT<TestClaims>(jwtString: hmacEncodedTestClaimJWT) {
+        if let decoded = try? JWT<Header, TestClaims>(jwtString: hmacEncodedTestClaimJWT) {
             XCTAssertEqual(decoded.header.alg, "HS256", "Wrong .alg in decoded")
             XCTAssertEqual(decoded.header.typ, "JWT", "Wrong .typ in decoded")
             
@@ -565,10 +565,10 @@ class TestJWT: XCTestCase {
     // Test using a JWT generated from jwt.io using es256 with `ecdsaPrivateKey` for interoperability.
     func testJWTUsingECDSA() {
         if #available(OSX 10.13, iOS 11, tvOS 11.0, *) {
-            let ok = JWT<TestClaims>.verify(ecdsaEncodedTestClaimJWT, using: .es256(publicKey: ecdsaPublicKey))
+            let ok = JWT<Header, TestClaims>.verify(ecdsaEncodedTestClaimJWT, using: .es256(publicKey: ecdsaPublicKey))
             XCTAssertTrue(ok, "Verification failed")
             
-            if let decoded = try? JWT<TestClaims>(jwtString: ecdsaEncodedTestClaimJWT) {
+            if let decoded = try? JWT<Header, TestClaims>(jwtString: ecdsaEncodedTestClaimJWT) {
                 XCTAssertEqual(decoded.header.alg, "ES256", "Wrong .alg in decoded")
                 XCTAssertEqual(decoded.header.typ, "JWT", "Wrong .typ in decoded")
                 
@@ -587,7 +587,7 @@ class TestJWT: XCTestCase {
     }
     
     func testValidateClaims() {
-        var jwt = JWT(claims: TestClaims(name:"Kitura"))
+        var jwt = JWT(header: Header(), claims: TestClaims(name:"Kitura"))
         jwt.claims.exp = Date()
         XCTAssertEqual(jwt.validateClaims(), .expired, "Validation failed")
         jwt.claims.exp = nil
@@ -599,7 +599,7 @@ class TestJWT: XCTestCase {
     }
     
     func testValidateClaimsLeeway() {
-        var jwt = JWT(claims: TestClaims(name:"Kitura"))
+        var jwt = JWT(header: Header(), claims: TestClaims(name:"Kitura"))
         jwt.claims.exp = Date()
         XCTAssertEqual(jwt.validateClaims(leeway: 20), .success, "Validation failed")
         jwt.claims.exp = nil
@@ -612,7 +612,7 @@ class TestJWT: XCTestCase {
     
     func testErrorPattenMatching() {
         do {
-            let _ = try JWT<TestClaims>(jwtString: "InvalidString",  verifier: .rs256(publicKey: rsaPublicKey))
+            let _ = try JWT<Header, TestClaims>(jwtString: "InvalidString",  verifier: .rs256(publicKey: rsaPublicKey))
         } catch JWTError.invalidJWTString {
             // Caught correct error
         } catch {

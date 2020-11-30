@@ -18,6 +18,21 @@ import Foundation
 
 // MARK: Header
 
+/// Header protocol
+public protocol HeaderProtocol: Codable {
+    /// Algorithm Header Parameter
+    var alg: String? { get set }
+    func encode() throws -> String
+}
+public extension HeaderProtocol {
+    func encode() throws -> String {
+        let jsonEncoder = JSONEncoder()
+        jsonEncoder.dateEncodingStrategy = .secondsSince1970
+        let data = try jsonEncoder.encode(self)
+        return JWTEncoder.base64urlEncodedString(data: data)
+    }
+}
+
 /**
  A representation of a JSON Web Token header.
  https://tools.ietf.org/html/rfc7515#section-4.1
@@ -30,12 +45,12 @@ import Foundation
  let jwt = JWT(header: myHeader, claims: MyClaims(name: "Kitura"))
  ```
  */
-public struct Header: Codable {
-    
+public struct Header: HeaderProtocol {
+
     /// Type Header Parameter
     public var typ: String?
     /// Algorithm Header Parameter
-    public internal(set) var alg: String?
+    public var alg: String?
     /// JSON Web Token Set URL Header Parameter
     public var jku : String?
     /// JSON Web Key Header Parameter
@@ -93,10 +108,4 @@ public struct Header: Codable {
         self.crit = crit
     }
     
-    func encode() throws -> String  {
-        let jsonEncoder = JSONEncoder()
-        jsonEncoder.dateEncodingStrategy = .secondsSince1970
-        let data = try jsonEncoder.encode(self)
-        return JWTEncoder.base64urlEncodedString(data: data)
-    }
 }
