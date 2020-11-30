@@ -25,11 +25,13 @@ class BlueECSigner: SignerAlgorithm {
     
     private let key: Data
     private let curve: EllipticCurve
+    private let signatureType: ECSignatureType
     
     // Initialize a signer using .utf8 encoded PEM private key.
-    init(key: Data, curve: EllipticCurve) {
+    init(key: Data, curve: EllipticCurve, signatureType: ECSignatureType = .rs) {
         self.key = key
         self.curve = curve
+        self.signatureType = signatureType
     }
     
     // Sign the header and claims to produce a signed JWT String
@@ -53,7 +55,11 @@ class BlueECSigner: SignerAlgorithm {
             throw JWTError.invalidPrivateKey
         }
         let signedData = try data.sign(with: privateKey)
-        return signedData.r + signedData.s
+        if signatureType == .asn1 {
+            return signedData.asn1
+        } else {
+            return signedData.r + signedData.s
+        }
     }
 }
 
@@ -65,11 +71,13 @@ class BlueECVerifier: VerifierAlgorithm {
     
     private let key: Data
     private let curve: EllipticCurve
+    private let signatureType: ECSignatureType
     
     // Initialize a verifier using .utf8 encoded PEM public key.
-    init(key: Data, curve: EllipticCurve) {
+    init(key: Data, curve: EllipticCurve, signatureType: ECSignatureType = .rs) {
         self.key = key
         self.curve = curve
+        self.signatureType = signatureType
     }
     
     // Verify a signed JWT String
@@ -93,18 +101,28 @@ class BlueECVerifier: VerifierAlgorithm {
             guard let keyString = String(data: key, encoding: .utf8) else {
                 return false
             }
-            let r = signature.subdata(in: 0 ..< signature.count/2)
-            let s = signature.subdata(in: signature.count/2 ..< signature.count)
-            let signature = try ECSignature(r: r, s: s)
+            let ecSignature: ECSignature
+            if signatureType == .asn1 {
+                ecSignature = try ECSignature(asn1: signature)
+            } else {
+                let r = signature.subdata(in: 0 ..< signature.count/2)
+                let s = signature.subdata(in: signature.count/2 ..< signature.count)
+                ecSignature = try ECSignature(r: r, s: s)
+            }
             let publicKey = try ECPublicKey(key: keyString)
             guard publicKey.curve == curve else {
                 return false
             }
-            return signature.verify(plaintext: data, using: publicKey)
+            return ecSignature.verify(plaintext: data, using: publicKey)
         }
         catch {
             Log.error("Verification failed: \(error)")
             return false
         }
     }
+}
+
+public enum ECSignatureType {
+    case asn1
+    case rs
 }

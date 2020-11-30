@@ -123,22 +123,22 @@ public struct JWTSigner {
     /// Initialize a JWTSigner using the ECDSA SHA256 algorithm and the provided privateKey.
     /// - Parameter privateKey: The UTF8 encoded PEM private key, with either a "BEGIN EC PRIVATE KEY" or "BEGIN PRIVATE KEY" header.
     @available(OSX 10.13, iOS 11, tvOS 11.0, watchOS 4.0, *)
-    public static func es256(privateKey: Data) -> JWTSigner {
-        return JWTSigner(name: "ES256", signerAlgorithm: BlueECSigner(key: privateKey, curve: .prime256v1))
+    public static func es256(privateKey: Data, signatureType: ECSignatureType = .rs) -> JWTSigner {
+        return JWTSigner(name: "ES256", signerAlgorithm: BlueECSigner(key: privateKey, curve: .prime256v1, signatureType: signatureType))
     }
     
     /// Initialize a JWTSigner using the ECDSA SHA384 algorithm and the provided privateKey.
     /// - Parameter privateKey: The UTF8 encoded PEM private key, with either a "BEGIN EC PRIVATE KEY" or "BEGIN PRIVATE KEY" header.
     @available(OSX 10.13, iOS 11, tvOS 11.0, watchOS 4.0, *)
-    public static func es384(privateKey: Data) -> JWTSigner {
-        return JWTSigner(name: "ES384", signerAlgorithm: BlueECSigner(key: privateKey, curve: .secp384r1))
+    public static func es384(privateKey: Data, signatureType: ECSignatureType = .rs) -> JWTSigner {
+        return JWTSigner(name: "ES384", signerAlgorithm: BlueECSigner(key: privateKey, curve: .secp384r1, signatureType: signatureType))
     }
     
     /// Initialize a JWTSigner using the ECDSA SHA512 algorithm and the provided privateKey.
     /// - Parameter privateKey: The UTF8 encoded PEM private key, with either a "BEGIN EC PRIVATE KEY" or "BEGIN PRIVATE KEY" header.
     @available(OSX 10.13, iOS 11, tvOS 11.0, watchOS 4.0, *)
-    public static func es512(privateKey: Data) -> JWTSigner {
-        return JWTSigner(name: "ES512", signerAlgorithm: BlueECSigner(key: privateKey, curve: .secp521r1))
+    public static func es512(privateKey: Data, signatureType: ECSignatureType = .rs) -> JWTSigner {
+        return JWTSigner(name: "ES512", signerAlgorithm: BlueECSigner(key: privateKey, curve: .secp521r1, signatureType: signatureType))
     }
     
     /// Initialize a JWTSigner that will not sign the JWT. This is equivelent to using the "none" alg header.

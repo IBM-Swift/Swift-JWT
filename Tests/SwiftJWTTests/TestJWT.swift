@@ -295,6 +295,16 @@ class TestJWT: XCTestCase {
         }
     }
     
+    func testSignAndVerifyECDSA512ASN1() {
+        if #available(OSX 10.13, iOS 11, tvOS 11.0, *) {
+            do {
+                try signAndVerify(signer: .es512(privateKey: ec512PrivateKey, signatureType: .asn1), verifier: .es512(publicKey: ec512PublicKey, signatureType: .asn1))
+            } catch {
+                XCTFail("testSignAndVerify failed: \(error)")
+            }
+        }
+    }
+    
     func signAndVerify(signer: JWTSigner, verifier: JWTVerifier) throws {
         var jwt = JWT(claims: TestClaims(name:"Kitura"))
         jwt.claims.name = "Kitura-JWT"

@@ -186,6 +186,17 @@ The supported algorithms for signing and verifying JWTs are:
 
 Note: ECDSA and RSA-PSS algorithms require a minimum Swift version of 4.1.
 
+
+#### Using ASN1 encoding for ECDSA signature
+
+In some cases the ASN1 encoding for ECDSA signatures might be necessary. To use this, a `signatureType: ECSignatureType` parameter can be used for the `JWTSigner` and `JWTVerifier` like this:
+
+```swift
+let jwtSigner = JWTSigner.es512(privateKey: privateKey, signatureType: .asn1)
+let jwtVerifier = JWTVerifier.es512(publicKey: publicKey, signatureType: .asn1)
+```
+
+
 ### Validate claims
 
 The `validateClaims` function validates the standard `Date` claims of a JWT instance.
